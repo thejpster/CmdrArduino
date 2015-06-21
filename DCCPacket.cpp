@@ -31,7 +31,7 @@
 
 #include "DCCPacket.h"
 
-DCCPacket::DCCPacket(uint16_t new_address, byte new_address_kind) : address(new_address), address_kind(new_address_kind), kind(idle_packet_kind), size_repeat(0x40) //size(1), repeat(0)
+DCCPacket::DCCPacket(address_t new_address, address_kind_t new_address_kind) : address(new_address), address_kind(new_address_kind), kind(IDLE_PACKET_KIND), size_repeat(0x40) //size(1), repeat(0)
 {
 	address = new_address;
 	address_kind = new_address_kind;
@@ -40,49 +40,46 @@ DCCPacket::DCCPacket(uint16_t new_address, byte new_address_kind) : address(new_
 	data[2] = 0x00;
 }
 
-byte DCCPacket::getBitstream(byte rawbytes[]) //returns size of array.
+uint8_t DCCPacket::getBitstream(uint8_t rawbytes[]) //returns size of array.
 {
-	int total_size = 1; //minimum size
+	size_t total_size = 1; //minimum size
+	uint8_t cs_byte = 0;
 
 	if (kind & MULTIFUNCTION_PACKET_KIND_MASK)
 	{
-		if (kind == idle_packet_kind) //idle packets work a bit differently:
+
+		if (kind == IDLE_PACKET_KIND) //idle packets work a bit differently:
 			// since the "address" field is 0xFF, the logic below will produce C0 FF 00 3F instead of FF 00 FF
 		{
 			rawbytes[0] = 0xFF;
+			cs_byte = rawbytes[0];
 		}
 		else if (address_kind == DCC_LONG_ADDRESS)   //This is a 14-bit address
 		{
-			rawbytes[0] = (byte)((address >> 8) | 0xC0);
-			rawbytes[1] = (byte)(address & 0xFF);
-			++total_size;
+			rawbytes[0] = (uint8_t)((address >> 8) | 0xC0);
+			rawbytes[1] = (uint8_t)(address & 0xFF);
+			cs_byte = rawbytes[0] ^ rawbytes[1];
+			total_size = 2;
 		}
 		else   //we have an 7-bit address
 		{
-			rawbytes[0] = (byte)(address & 0x7F);
+			rawbytes[0] = (uint8_t)(address & 0x7F);
+			cs_byte = rawbytes[0];
 		}
 
-		byte i;
-
-		for (i = 0; i < getSize(); ++i, ++total_size)
+		for (size_t i = 0; i < getSize(); ++i)
 		{
-			rawbytes[total_size] = data[i];
+			rawbytes[total_size++] = data[i];
+			cs_byte ^= data[i];
 		}
 
-		byte XOR = 0;
-
-		for (i = 0; i < total_size; ++i)
-		{
-			XOR ^= rawbytes[i];
-		}
-
-		rawbytes[total_size] = XOR;
+		rawbytes[total_size] = cs_byte;
 
 		return total_size + 1;
 	}
 	else if (kind & ACCESSORY_PACKET_KIND_MASK)
 	{
-		if (kind == basic_accessory_packet_kind)
+		if (kind == BASIC_ACCESSORY_PACKET_KIND)
 		{
 			// Basic Accessory Packet looks like this:
 			// {preamble} 0 10AAAAAA 0 1AAACDDD 0 EEEEEEEE 1
@@ -96,24 +93,24 @@ byte DCCPacket::getBitstream(byte rawbytes[]) //returns size of array.
 			rawbytes[1] |= (~(address >> 2) & 0x70)
 			               | (data[0] & 0x07);
 
-			//now, add any programming bytes (skipping first data byte, of course)
-			byte i;
-			byte total_size = 2;
+			cs_byte = rawbytes[0] ^ rawbytes[1];
+			total_size = 2;
 
-			for (i = 1; i < getSize(); ++i, ++total_size)
+			//now, add any programming bytes (skipping first data byte, of course)
+			for (size_t i = 1; i < getSize(); ++i)
 			{
-				rawbytes[total_size] = data[i];
+				rawbytes[total_size++] = data[i];
+				cs_byte ^= data[i];
 			}
 
 			//and, finally, the XOR
-			byte XOR = 0;
 
-			for (i = 0; i < total_size; ++i)
+			for (size_t i = 0; i < total_size; ++i)
 			{
-				XOR ^= rawbytes[i];
+				cs_byte ^= rawbytes[i];
 			}
 
-			rawbytes[total_size] = XOR;
+			rawbytes[total_size] = cs_byte;
 
 			return total_size + 1;
 		}

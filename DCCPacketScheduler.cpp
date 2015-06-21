@@ -70,9 +70,9 @@ void DCCPacketScheduler::setup(void) //for any post-constructor initialization
 
     //reset packet: address 0x00, data 0x00, XOR 0x00; S 9.2 line 75
     p.addData(data, 1);
-    p.setAddress(0x00, DCC_SHORT_ADDRESS);
+    p.setAddress(0x00, DCCPacket::DCC_SHORT_ADDRESS);
     p.setRepeat(20);
-    p.setKind(reset_packet_kind);
+    p.setKind(RESET_PACKET_KIND);
     e_stop_queue.insertPacket(&p);
 
     //WHy in the world is it that what gets put on the rails is 4 reset packets, followed by
@@ -81,9 +81,9 @@ void DCCPacketScheduler::setup(void) //for any post-constructor initialization
     // 00 FF FF   what are these?
 
     //idle packet: address 0xFF, data 0x00, XOR 0xFF; S 9.2 line 90
-    p.setAddress(0xFF, DCC_SHORT_ADDRESS);
+    p.setAddress(0xFF, DCCPacket::DCC_SHORT_ADDRESS);
     p.setRepeat(10);
-    p.setKind(idle_packet_kind);
+    p.setKind(IDLE_PACKET_KIND);
     e_stop_queue.insertPacket(&p); //e_stop_queue will be empty, so no need to check if insertion was OK.
 
 }
@@ -93,21 +93,21 @@ void DCCPacketScheduler::repeatPacket(DCCPacket* p)
 {
     switch (p->getKind())
     {
-    case idle_packet_kind:
-    case e_stop_packet_kind: //e_stop packets automatically repeat without having to be put in a special queue
+    case IDLE_PACKET_KIND:
+    case ESTOP_PACKET_KIND: //e_stop packets automatically repeat without having to be put in a special queue
         break;
 
-    case speed_packet_kind: //speed packets go to the periodic_refresh queue
+    case SPEED_PACKET_KIND: //speed packets go to the periodic_refresh queue
 
     //  periodic_refresh_queue.insertPacket(p);
     //  break;
-    case function_packet_1_kind: //all other packets go to the repeat_queue
-    case function_packet_2_kind: //all other packets go to the repeat_queue
-    case function_packet_3_kind: //all other packets go to the repeat_queue
-    case accessory_packet_kind:
-    case reset_packet_kind:
-    case ops_mode_programming_kind:
-    case other_packet_kind:
+    case FUNCTION_PACKET_1_KIND: //all other packets go to the repeat_queue
+    case FUNCTION_PACKET_2_KIND: //all other packets go to the repeat_queue
+    case FUNCTION_PACKET_3_KIND: //all other packets go to the repeat_queue
+    case ACCESSORY_PACKET_KIND:
+    case RESET_PACKET_KIND:
+    case OPS_MODE_PROGRAMMING_KIND:
+    case OTHER_PACKET_KIND:
     default:
         repeat_queue.insertPacket(p);
     }
@@ -121,7 +121,7 @@ void DCCPacketScheduler::repeatPacket(DCCPacket* p)
 // a value of 1/-1 = stop
 // a value >1 (or <-1) means go.
 // valid non-estop speeds are in the range [1,127] / [-127,-1] with 1 = stop
-bool DCCPacketScheduler::setSpeed(uint16_t address, uint8_t address_kind, int8_t new_speed, uint8_t steps)
+bool DCCPacketScheduler::setSpeed(DCCPacket::address_t address, DCCPacket::address_kind_t address_kind, int8_t new_speed, uint8_t steps)
 {
     uint8_t num_steps = steps;
 
@@ -146,7 +146,7 @@ bool DCCPacketScheduler::setSpeed(uint16_t address, uint8_t address_kind, int8_t
     return false; //invalid number of steps specified.
 }
 
-bool DCCPacketScheduler::setSpeed14(uint16_t address, uint8_t address_kind, int8_t new_speed, bool F0)
+bool DCCPacketScheduler::setSpeed14(DCCPacket::address_t address, DCCPacket::address_kind_t address_kind, int8_t new_speed, bool F0)
 {
     DCCPacket p(address, address_kind);
     uint8_t dir = 1;
@@ -178,14 +178,14 @@ bool DCCPacketScheduler::setSpeed14(uint16_t address, uint8_t address_kind, int8
 
     p.setRepeat(SPEED_REPEAT);
 
-    p.setKind(speed_packet_kind);
+    p.setKind(SPEED_PACKET_KIND);
 
     //speed packets get refreshed indefinitely, and so the repeat doesn't need to be set.
     //speed packets go to the high proirity queue
     return (high_priority_queue.insertPacket(&p));
 }
 
-bool DCCPacketScheduler::setSpeed28(uint16_t address, uint8_t address_kind, int8_t new_speed)
+bool DCCPacketScheduler::setSpeed28(DCCPacket::address_t address, DCCPacket::address_kind_t address_kind, int8_t new_speed)
 {
     DCCPacket p(address, address_kind);
     uint8_t dir = 1;
@@ -218,7 +218,7 @@ bool DCCPacketScheduler::setSpeed28(uint16_t address, uint8_t address_kind, int8
 
     p.setRepeat(SPEED_REPEAT);
 
-    p.setKind(speed_packet_kind);
+    p.setKind(SPEED_PACKET_KIND);
 
     //speed packets get refreshed indefinitely, and so the repeat doesn't need to be set.
     //speed packets go to the high proirity queue
@@ -226,7 +226,7 @@ bool DCCPacketScheduler::setSpeed28(uint16_t address, uint8_t address_kind, int8
     return (high_priority_queue.insertPacket(&p));
 }
 
-bool DCCPacketScheduler::setSpeed128(uint16_t address, uint8_t address_kind, int8_t new_speed)
+bool DCCPacketScheduler::setSpeed128(DCCPacket::address_t address, DCCPacket::address_kind_t address_kind, int8_t new_speed)
 {
     //why do we get things like this?
     // 03 3F 16 15 3F (speed packet addressed to loco 03)
@@ -260,14 +260,14 @@ bool DCCPacketScheduler::setSpeed128(uint16_t address, uint8_t address_kind, int
 
     p.setRepeat(SPEED_REPEAT);
 
-    p.setKind(speed_packet_kind);
+    p.setKind(SPEED_PACKET_KIND);
 
     //speed packets get refreshed indefinitely, and so the repeat doesn't need to be set.
     //speed packets go to the high proirity queue
     return (high_priority_queue.insertPacket(&p));
 }
 
-bool DCCPacketScheduler::setFunctions(uint16_t address, uint8_t address_kind, uint16_t functions)
+bool DCCPacketScheduler::setFunctions(DCCPacket::address_t address, DCCPacket::address_kind_t address_kind, uint16_t functions)
 {
     if (setFunctions0to4(address, address_kind, functions & 0x1F))
         if (setFunctions5to8(address, address_kind, (functions >> 5) & 0x0F))
@@ -279,7 +279,7 @@ bool DCCPacketScheduler::setFunctions(uint16_t address, uint8_t address_kind, ui
     return false;
 }
 
-bool DCCPacketScheduler::setFunctions(uint16_t address, uint8_t address_kind, uint8_t F0to4, uint8_t F5to8, uint8_t F9to12)
+bool DCCPacketScheduler::setFunctions(DCCPacket::address_t address, DCCPacket::address_kind_t address_kind, uint8_t F0to4, uint8_t F5to8, uint8_t F9to12)
 {
     if (setFunctions0to4(address, address_kind, F0to4))
         if (setFunctions5to8(address, address_kind, F5to8))
@@ -291,7 +291,7 @@ bool DCCPacketScheduler::setFunctions(uint16_t address, uint8_t address_kind, ui
     return false;
 }
 
-bool DCCPacketScheduler::setFunctions0to4(uint16_t address, uint8_t address_kind, uint8_t functions)
+bool DCCPacketScheduler::setFunctions0to4(DCCPacket::address_t address, DCCPacket::address_kind_t address_kind, uint8_t functions)
 {
     DCCPacket p(address, address_kind);
     uint8_t data[] = {0x80};
@@ -305,13 +305,13 @@ bool DCCPacketScheduler::setFunctions0to4(uint16_t address, uint8_t address_kind
     data[0] |= (functions & 0x01) << 4;
 
     p.addData(data, 1);
-    p.setKind(function_packet_1_kind);
+    p.setKind(FUNCTION_PACKET_1_KIND);
     p.setRepeat(FUNCTION_REPEAT);
     return low_priority_queue.insertPacket(&p);
 }
 
 
-bool DCCPacketScheduler::setFunctions5to8(uint16_t address, uint8_t address_kind, uint8_t functions)
+bool DCCPacketScheduler::setFunctions5to8(DCCPacket::address_t address, DCCPacket::address_kind_t address_kind, uint8_t functions)
 {
     DCCPacket p(address, address_kind);
     uint8_t data[] = {0xB0};
@@ -319,12 +319,12 @@ bool DCCPacketScheduler::setFunctions5to8(uint16_t address, uint8_t address_kind
     data[0] |= functions & 0x0F;
 
     p.addData(data, 1);
-    p.setKind(function_packet_2_kind);
+    p.setKind(FUNCTION_PACKET_2_KIND);
     p.setRepeat(FUNCTION_REPEAT);
     return low_priority_queue.insertPacket(&p);
 }
 
-bool DCCPacketScheduler::setFunctions9to12(uint16_t address, uint8_t address_kind, uint8_t functions)
+bool DCCPacketScheduler::setFunctions9to12(DCCPacket::address_t address, DCCPacket::address_kind_t address_kind, uint8_t functions)
 {
     DCCPacket p(address, address_kind);
     uint8_t data[] = {0xA0};
@@ -333,7 +333,7 @@ bool DCCPacketScheduler::setFunctions9to12(uint16_t address, uint8_t address_kin
     data[0] |= functions & 0x0F;
 
     p.addData(data, 1);
-    p.setKind(function_packet_3_kind);
+    p.setKind(FUNCTION_PACKET_3_KIND);
     p.setRepeat(FUNCTION_REPEAT);
     return low_priority_queue.insertPacket(&p);
 }
@@ -341,10 +341,10 @@ bool DCCPacketScheduler::setFunctions9to12(uint16_t address, uint8_t address_kin
 
 //other cool functions to follow. Just get these working first, I think.
 
-//bool DCCPacketScheduler::setTurnout(uint16_t address)
-//bool DCCPacketScheduler::unsetTurnout(uint16_t address)
+//bool DCCPacketScheduler::setTurnout(DCCPacket::address_t address)
+//bool DCCPacketScheduler::unsetTurnout(DCCPacket::address_t address)
 
-bool DCCPacketScheduler::opsProgramCV(uint16_t address, uint8_t address_kind, uint16_t CV, uint8_t CV_data)
+bool DCCPacketScheduler::opsProgramCV(DCCPacket::address_t address, DCCPacket::address_kind_t address_kind, uint16_t CV, uint8_t CV_data)
 {
     //format of packet:
     // {preamble} 0 [ AAAAAAAA ] 0 111011VV 0 VVVVVVVV 0 DDDDDDDD 0 EEEEEEEE 1 (write)
@@ -361,7 +361,7 @@ bool DCCPacketScheduler::opsProgramCV(uint16_t address, uint8_t address_kind, ui
     data[2] = CV_data;
 
     p.addData(data, 3);
-    p.setKind(ops_mode_programming_kind);
+    p.setKind(OPS_MODE_PROGRAMMING_KIND);
     p.setRepeat(OPS_MODE_PROGRAMMING_REPEAT);
 
     return low_priority_queue.insertPacket(&p);
@@ -376,7 +376,7 @@ bool DCCPacketScheduler::eStop(void)
     DCCPacket e_stop_packet(0); //address 0
     uint8_t data[] = {0x71}; //01110001
     e_stop_packet.addData(data, 1);
-    e_stop_packet.setKind(e_stop_packet_kind);
+    e_stop_packet.setKind(ESTOP_PACKET_KIND);
     e_stop_packet.setRepeat(10);
     e_stop_queue.insertPacket(&e_stop_packet);
     //now, clear all other queues
@@ -386,7 +386,7 @@ bool DCCPacketScheduler::eStop(void)
     return true;
 }
 
-bool DCCPacketScheduler::eStop(uint16_t address, uint8_t address_kind)
+bool DCCPacketScheduler::eStop(DCCPacket::address_t address, DCCPacket::address_kind_t address_kind)
 {
     // 111111111111 0 0AAAAAAA 0 01001001 0 EEEEEEEE 1
     // or
@@ -394,7 +394,7 @@ bool DCCPacketScheduler::eStop(uint16_t address, uint8_t address_kind)
     DCCPacket e_stop_packet(address, address_kind);
     uint8_t data[] = {0x41}; //01000001
     e_stop_packet.addData(data, 1);
-    e_stop_packet.setKind(e_stop_packet_kind);
+    e_stop_packet.setKind(ESTOP_PACKET_KIND);
     e_stop_packet.setRepeat(10);
     e_stop_queue.insertPacket(&e_stop_packet);
     //now, clear this packet's address from all other queues
@@ -403,25 +403,25 @@ bool DCCPacketScheduler::eStop(uint16_t address, uint8_t address_kind)
     repeat_queue.forget(address, address_kind);
 }
 
-bool DCCPacketScheduler::setBasicAccessory(uint16_t address, uint8_t function)
+bool DCCPacketScheduler::setBasicAccessory(DCCPacket::address_t address, uint8_t function)
 {
     DCCPacket p(address);
 
     uint8_t data[] = { 0x01 | ((function & 0x03) << 1) };
     p.addData(data, 1);
-    p.setKind(basic_accessory_packet_kind);
+    p.setKind(BASIC_ACCESSORY_PACKET_KIND);
     p.setRepeat(OTHER_REPEAT);
 
     return low_priority_queue.insertPacket(&p);
 }
 
-bool DCCPacketScheduler::unsetBasicAccessory(uint16_t address, uint8_t function)
+bool DCCPacketScheduler::unsetBasicAccessory(DCCPacket::address_t address, uint8_t function)
 {
     DCCPacket p(address);
 
     uint8_t data[] = { ((function & 0x03) << 1) };
     p.addData(data, 1);
-    p.setKind(basic_accessory_packet_kind);
+    p.setKind(BASIC_ACCESSORY_PACKET_KIND);
     p.setRepeat(OTHER_REPEAT);
 
     return low_priority_queue.insertPacket(&p);
