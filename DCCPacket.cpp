@@ -1,47 +1,89 @@
+/*
+ * CmdrArduino
+ *
+ * DCC Packet Queue
+ *
+ * Author: Don Goodman-Wilson dgoodman@artificial-science.org
+ * Changes by: Jonathan Pallant dcc@thejpster.org.uk
+ *
+ * based on software by Wolfgang Kufer, http://opendcc.de
+ *
+ * Copyright 2010 Don Goodman-Wilson
+ * Copyright 2015 Jonathan Pallant
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
+#include <Arduino.h>
+#include <stdint.h>
+
 #include "DCCPacket.h"
 
-DCCPacket::DCCPacket(uint16_t new_address, uint8_t new_address_kind) : address(new_address), address_kind(new_address_kind), kind(idle_packet_kind), size_repeat(0x40) //size(1), repeat(0)
+DCCPacket::DCCPacket(uint16_t new_address, byte new_address_kind) : address(new_address), address_kind(new_address_kind), kind(idle_packet_kind), size_repeat(0x40) //size(1), repeat(0)
 {
-  address = new_address;
-  address_kind = new_address_kind;
-  data[0] = 0x00; //default to idle packet
-  data[1] = 0x00;
-  data[2] = 0x00;
+	address = new_address;
+	address_kind = new_address_kind;
+	data[0] = 0x00; //default to idle packet
+	data[1] = 0x00;
+	data[2] = 0x00;
 }
 
-uint8_t DCCPacket::getBitstream(uint8_t rawbytes[]) //returns size of array.
+byte DCCPacket::getBitstream(byte rawbytes[]) //returns size of array.
 {
 	int total_size = 1; //minimum size
 
-	if (kind & MULTIFUNCTION_PACKET_KIND_MASK) {
+	if (kind & MULTIFUNCTION_PACKET_KIND_MASK)
+	{
 		if (kind == idle_packet_kind) //idle packets work a bit differently:
-		// since the "address" field is 0xFF, the logic below will produce C0 FF 00 3F instead of FF 00 FF
+			// since the "address" field is 0xFF, the logic below will produce C0 FF 00 3F instead of FF 00 FF
 		{
 			rawbytes[0] = 0xFF;
-		} else if (address_kind == DCC_LONG_ADDRESS) //This is a 14-bit address
+		}
+		else if (address_kind == DCC_LONG_ADDRESS)   //This is a 14-bit address
 		{
-			rawbytes[0] = (uint8_t)((address >> 8) | 0xC0);
-			rawbytes[1] = (uint8_t)(address & 0xFF);
+			rawbytes[0] = (byte)((address >> 8) | 0xC0);
+			rawbytes[1] = (byte)(address & 0xFF);
 			++total_size;
-		} else //we have an 7-bit address
+		}
+		else   //we have an 7-bit address
 		{
-			rawbytes[0] = (uint8_t)(address & 0x7F);
+			rawbytes[0] = (byte)(address & 0x7F);
 		}
 
-		uint8_t i;
-		for (i = 0; i < getSize(); ++i, ++total_size) {
+		byte i;
+
+		for (i = 0; i < getSize(); ++i, ++total_size)
+		{
 			rawbytes[total_size] = data[i];
 		}
 
-		uint8_t XOR = 0;
-		for (i = 0; i < total_size; ++i) {
+		byte XOR = 0;
+
+		for (i = 0; i < total_size; ++i)
+		{
 			XOR ^= rawbytes[i];
 		}
+
 		rawbytes[total_size] = XOR;
 
 		return total_size + 1;
-	} else if (kind & ACCESSORY_PACKET_KIND_MASK) {
-		if (kind == basic_accessory_packet_kind) {
+	}
+	else if (kind & ACCESSORY_PACKET_KIND_MASK)
+	{
+		if (kind == basic_accessory_packet_kind)
+		{
 			// Basic Accessory Packet looks like this:
 			// {preamble} 0 10AAAAAA 0 1AAACDDD 0 EEEEEEEE 1
 			// or this:
@@ -52,36 +94,45 @@ uint8_t DCCPacket::getBitstream(uint8_t rawbytes[]) //returns size of array.
 
 			rawbytes[0] |= address & 0x03F;
 			rawbytes[1] |= (~(address >> 2) & 0x70)
-					| (data[0] & 0x07);
+			               | (data[0] & 0x07);
 
 			//now, add any programming bytes (skipping first data byte, of course)
-			uint8_t i;
-			uint8_t total_size = 2;
-			for (i = 1; i < getSize(); ++i, ++total_size) {
+			byte i;
+			byte total_size = 2;
+
+			for (i = 1; i < getSize(); ++i, ++total_size)
+			{
 				rawbytes[total_size] = data[i];
 			}
 
 			//and, finally, the XOR
-			uint8_t XOR = 0;
-			for (i = 0; i < total_size; ++i) {
+			byte XOR = 0;
+
+			for (i = 0; i < total_size; ++i)
+			{
 				XOR ^= rawbytes[i];
 			}
+
 			rawbytes[total_size] = XOR;
 
 			return total_size + 1;
 		}
 	}
+
 	return 0; //ERROR! SHOULD NEVER REACH HERE! do something useful, like transform it into an idle packet or something! TODO
 }
 
-uint8_t DCCPacket::getSize(void)
+byte DCCPacket::getSize(void)
 {
-  return (size_repeat>>6);
+	return (size_repeat >> 6);
 }
 
-void DCCPacket::addData(uint8_t new_data[], uint8_t new_size) //insert freeform data.
+void DCCPacket::addData(byte new_data[], byte new_size) //insert freeform data.
 {
-  for(int i = 0; i < new_size; ++i)
-    data[i] = new_data[i];
-  size_repeat = (size_repeat & 0x3F) | (new_size<<6);
+	for (int i = 0; i < new_size; ++i)
+	{
+		data[i] = new_data[i];
+	}
+
+	size_repeat = (size_repeat & 0x3F) | (new_size << 6);
 }

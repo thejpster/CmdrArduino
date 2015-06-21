@@ -1,8 +1,36 @@
+/*
+ * CmdrArduino
+ *
+ * DCC Packet Scheduler
+ *
+ * Author: Don Goodman-Wilson dgoodman@artificial-science.org
+ * Changes by: Jonathan Pallant dcc@thejpster.org.uk
+ *
+ * based on software by Wolfgang Kufer, http://opendcc.de
+ *
+ * Copyright 2010 Don Goodman-Wilson
+ * Copyright 2015 Jonathan Pallant
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
 #ifndef __DCCCOMMANDSTATION_H__
 #define __DCCCOMMANDSTATION_H__
+
 #include "DCCPacket.h"
 #include "DCCPacketQueue.h"
-
 
 #define E_STOP_QUEUE_SIZE           2
 #define HIGH_PRIORITY_QUEUE_SIZE    10
@@ -57,9 +85,8 @@ class DCCPacketScheduler
     //to be called periodically within loop()
     void update(void); //checks queues, puts whatever's pending on the rails via global current_packet. easy-peasy
 
-  //private:
+  private:
   
-  //  void stashAddress(DCCPacket *p); //remember the address to compare with the next packet
     void repeatPacket(DCCPacket *p); //insert into the appropriate repeat queue
     uint8_t default_speed_steps;
     uint16_t last_packet_address;
@@ -70,15 +97,6 @@ class DCCPacketScheduler
     DCCPacketQueue high_priority_queue;
     DCCPacketQueue low_priority_queue;
     DCCRepeatQueue repeat_queue;
-    //DCCTemporalQueue periodic_refresh_queue;
-    
-    //TODO to be completed later.
-    //DCC_Packet ops_programming_queue[10];
-    
-    //some handy thingers
-    //DCCPacket idle_packet;
 };
-
-//DCCPacketScheduler packet_scheduler;
 
 #endif //__DCC_COMMANDSTATION_H__
