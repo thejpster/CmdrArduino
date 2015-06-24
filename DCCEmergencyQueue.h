@@ -1,7 +1,7 @@
 /*
  * CmdrArduino
  *
- * DCC Hardware Interface
+ * DCC Emergency Packet Queue
  *
  * Author: Don Goodman-Wilson dgoodman@artificial-science.org
  * Changes by: Jonathan Pallant dcc@thejpster.org.uk
@@ -26,15 +26,21 @@
  *
  */
 
-#ifndef INC_DCCHARDWARE_H
-#define INC_DCCHARDWARE_H
+#ifndef INC_DCCEMERGENCYQUEUE_H
+#define INC_DCCEMERGENCYQUEUE_H
 
-void dcc_hardware_setup(void);
-bool dcc_hardware_need_packet(void);
-void dcc_hardware_supply_packet(const uint8_t* p_packet, size_t num_bytes);
+#include "DCCPacketQueue.h"
 
-#endif // INC_DCCHARDWARE_H
+//A queue that repeats the topmost packet as many times as is indicated by the packet before moving on
+class DCCEmergencyQueue: public DCCPacketQueue
+{
+public:
+  DCCEmergencyQueue(void);
+  bool readPacket(DCCPacket* packet);
+};
 
-/**********************************************************************
+#endif // INC_DCCEMERGENCYQUEUE_H
+
+/****************************************************************************
  * End of file
  ****************************************************************************/

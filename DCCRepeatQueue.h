@@ -1,7 +1,7 @@
 /*
  * CmdrArduino
  *
- * DCC Hardware Interface
+ * DCC Repeating Packet Queue
  *
  * Author: Don Goodman-Wilson dgoodman@artificial-science.org
  * Changes by: Jonathan Pallant dcc@thejpster.org.uk
@@ -26,15 +26,24 @@
  *
  */
 
-#ifndef INC_DCCHARDWARE_H
-#define INC_DCCHARDWARE_H
+#ifndef INC_DCCREPEATQUEUE_H
+#define INC_DCCREPEATQUEUE_H
 
-void dcc_hardware_setup(void);
-bool dcc_hardware_need_packet(void);
-void dcc_hardware_supply_packet(const uint8_t* p_packet, size_t num_bytes);
+#include "DCCPacketQueue.h"
 
-#endif // INC_DCCHARDWARE_H
+//A queue that, when a packet is read, puts that packet back in the queue if it requires repeating.
+class DCCRepeatQueue: public DCCPacketQueue
+{
+public:
+  DCCRepeatQueue(void);
+  //void setup(byte length);
+  bool insertPacket(DCCPacket* packet);
+  bool readPacket(DCCPacket* packet);
+};
 
-/**********************************************************************
+#endif // INC_DCCREPEATQUEUE_H
+
+
+/****************************************************************************
  * End of file
  ****************************************************************************/

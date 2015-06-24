@@ -32,7 +32,7 @@
 #include <Arduino.h>
 #include <stdint.h>
 
-#include "DCCPacketQueue.h"
+#include "DCCEmergencyQueue.h"
 
 /****************************************************************************
  * Defines
@@ -68,92 +68,29 @@
  * Public Functions
  ****************************************************************************/
 
-DCCPacketQueue::DCCPacketQueue(void) : read_pos(0), write_pos(0), size(10), written(0)
+DCCEmergencyQueue::DCCEmergencyQueue(void) : DCCPacketQueue()
 {
-  return;
 }
 
-void DCCPacketQueue::setup(byte length)
+/* Goes through each packet in the queue, repeats it getRepeat() times, and discards it */
+bool DCCEmergencyQueue::readPacket(DCCPacket* packet)
 {
-  size = length;
-  queue = (DCCPacket*)malloc(sizeof(DCCPacket) * size);
-
-  for (int i = 0; i < size; ++i)
+  if (!isEmpty()) //anything in the queue?
   {
-    queue[i] = DCCPacket();
-  }
-}
+    queue[read_pos].setRepeat(queue[read_pos].getRepeat() - 1); //decrement the current packet's repeat count
 
-bool DCCPacketQueue::insertPacket(DCCPacket* packet)
-{
-  //First: Overwrite any packet with the same address and kind; if no such packet THEN hitup the packet at write_pos
-  byte i = read_pos;
-
-  while (i != (read_pos + written) % (size))  //(size+1) ) //size+1 so we can check the last slot, too…
-  {
-    if ((queue[i].getAddress() == packet->getAddress()) && (queue[i].getKind() == packet->getKind()))
+    if (queue[read_pos].getRepeat()) //if the topmost packet needs repeating
     {
-      memcpy(&queue[i], packet, sizeof(DCCPacket));
-      //do not increment written or modify write_pos
+      memcpy(packet, &queue[read_pos], sizeof(DCCPacket));
       return true;
     }
-
-    i = (i + 1) % size;
-  }
-
-  //else, tack it on to the end
-  if (!isFull())
-  {
-    //else, just write it at the end of the queue.
-    memcpy(&queue[write_pos], packet, sizeof(DCCPacket));
-    write_pos = (write_pos + 1) % size;
-    ++written;
-    return true;
-  }
-
-  return false;
-}
-
-bool DCCPacketQueue::readPacket(DCCPacket* packet)
-{
-  if (!isEmpty())
-  {
-    memcpy(packet, &queue[read_pos], sizeof(DCCPacket));
-    read_pos = (read_pos + 1) % size;
-    --written;
-    return true;
-  }
-
-  return false;
-}
-
-bool DCCPacketQueue::forget(uint16_t address, byte address_kind)
-{
-  bool found = false;
-
-  for (int i = 0; i < size; ++i)
-  {
-    if ((queue[i].getAddress() == address) && (queue[i].getAddressKind() == address_kind))
+    else //the topmost packet is ready to be discarded; use the DCCPacketQueue mechanism
     {
-      found = true;
-      queue[i] = DCCPacket(); //revert to default value
+      return (DCCPacketQueue::readPacket(packet));
     }
   }
 
-  --written;
-  return found;
-}
-
-void DCCPacketQueue::clear(void)
-{
-  read_pos = 0;
-  write_pos = 0;
-  written = 0;
-
-  for (int i = 0; i < size; ++i)
-  {
-    queue[i] = DCCPacket();
-  }
+  return false;
 }
 
 /****************************************************************************

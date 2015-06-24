@@ -45,21 +45,44 @@
 * Defines
 ****************************************************************************/
 
+// If defined, this pin will go high during the preamble
+// of each command. This helps synchronise a logic analyser.
+#define COMMAND_STROBE
+
 #if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__) || defined(__AVR_AT90CAN128__) || defined(__AVR_AT90CAN64__) || defined(__AVR_AT90CAN32__)
 
 //On Arduino MEGA, etc, OC1A is digital pin 11, or Port B/Pin 5
 #define OC1A_OUTPUT_PIN (PINB & (1 << PINB5))
-//On Arduino MEGA, etc, OC1A is or Port B/Pin 5 and OC1B Port B/Pin 6
-#define OC1_OUTPUT_DIR ((1 << DDB5) | (1 << DDB6))
+#define SET_OC1_OUTPUT_DIR() do { DDRB |= ((1 << DDB5) | (1 << DDB6)); } while(0)
+
+#if defined(COMMAND_STROBE)
+#define SETUP_STROBE_PIN() do { DDRB |= (1 << DDB4); } while(0)
+#define SET_STROBE_PIN()  do { PORTB |= (1 << PB4); } while(0)
+#define CLEAR_STROBE_PIN() do { PORTB &= ~(1 << PB4); } while(0)
+#else
+#define SETUP_STROBE_PIN()
+#define SET_STROBE_PIN()
+#define CLEAR_STROBE_PIN()
+#endif // defined(COMMAND_STROBE)
 
 #else
 
 //On Arduino UNO, etc, OC1A is digital pin 9, or Port B/Pin 1
 #define OC1A_OUTPUT_PIN (PINB & (1 << PINB1))
 //On Arduino UNO, etc, OC1A is Port B/Pin 1 and OC1B Port B/Pin 2
-#define OC1_OUTPUT_DIR ((1 << DDB1) | (1 << DDB2))
+#define SET_OC1_OUTPUT_DIR() do { DDRB |= ((1 << DDB1) | (1 << DDB2)); } while(0)
 
-#endif
+#if defined(COMMAND_STROBE)
+#define SETUP_STROBE_PIN() do { DDRB |= (1 << DDB3); } while(0)
+#define SET_STROBE_PIN()  do { PORTB |= (1 << PB3); } while(0)
+#define CLEAR_STROBE_PIN() do { PORTB &= ~(1 << PB3); } while(0)
+#else
+#define SETUP_STROBE_PIN()
+#define SET_STROBE_PIN()
+#define CLEAR_STROBE_PIN()
+#endif // defined(COMMAND_STROBE)
+
+#endif // defined(ATmega1280), etc
 
 #define PREAMBLE_BITS 13 /* Bit counter counts from 13..0 => 14 bits */
 
@@ -106,11 +129,11 @@ enum dcc_hw_state_t
 /// The currently queued packet to be put on the rails. Default is a reset packet.
 static volatile uint8_t current_packet[6] = {0, 0, 0, 0, 0, 0};
 /// How many data bytes in the queued packet?
-static volatile uint8_t packet_size = 0;
+static volatile size_t packet_size = 0;
 /// How many bytes remain to be put on the rails?
-static volatile uint8_t byte_counter = 0;
+static volatile size_t byte_counter = 0;
 /// How many bits remain in the current data byte/preamble before changing states?
-static volatile uint8_t bit_counter = PREAMBLE_BITS;
+static volatile size_t bit_counter = PREAMBLE_BITS;
 
 static enum dcc_hw_state_t dcc_hw_state = DCC_HW_STATE_IDLE; //just to start out
 
@@ -150,9 +173,8 @@ static enum dcc_hw_state_t dcc_hw_state = DCC_HW_STATE_IDLE; //just to start out
   OCR1A = 19799
 
 */
-//static const uint16_t ONE_COUNT = 115; //58us
-#define US_TO_TICKS(us) (((us) * F_CPU) / (8 * 1000000))
-#define TIMER_COMP_VALUE(us) (US_TO_TICKS(us) - 1)
+#define US_TO_TICKS(us) (((us) * F_CPU) / (8UL * 1000000UL))
+#define TIMER_COMP_VALUE(us) (US_TO_TICKS(us) - 1UL)
 static const uint16_t ONE_COUNT = TIMER_COMP_VALUE(58);
 static const uint16_t ZERO_HIGH_COUNT = TIMER_COMP_VALUE(100);
 static const uint16_t ZERO_LOW_COUNT = TIMER_COMP_VALUE(100);
@@ -178,14 +200,16 @@ static const uint16_t ZERO_LOW_COUNT = TIMER_COMP_VALUE(100);
 void dcc_hardware_setup()
 {
     //Set the OC1A and OC1B pins (Timer1 output pins A and B) to output mode
-    DDRB |= OC1_OUTPUT_DIR;
+    SET_OC1_OUTPUT_DIR();
+
+    SETUP_STROBE_PIN();
 
     // Configure timer1 in CTC mode, for waveform generation, set to toggle
     // OC1A, OC1B, at /8 prescalar, interupt at CTC
     TCCR1A = (0 << COM1A1) | (1 << COM1A0) | (0 << COM1B1) | (1 << COM1B0) |
-        (0 << WGM11) | (0 << WGM10);
+             (0 << WGM11) | (0 << WGM10);
     TCCR1B = (0 << ICNC1)  | (0 << ICES1)  | (0 << WGM13)  | (1 << WGM12)  |
-        (0 << CS12)  | (1 << CS11) | (0 << CS10);
+             (0 << CS12)  | (1 << CS11) | (0 << CS10);
 
     // Start by outputting a '1'
     // Whenever we set OCR1A, we must also set OCR1B, or else pin OC1B will get
@@ -225,7 +249,8 @@ bool dcc_hardware_need_packet(void)
  *     Supply a new packet.
  *
  * PARAMETERS
- *     None
+ *     p_packet - the buffer containing the packet
+ *     num_bytes - the length of the p_packet buffer
  *
  * RETURNS
  *     Nothing
@@ -234,10 +259,11 @@ void dcc_hardware_supply_packet(const uint8_t* p_packet, size_t num_bytes)
 {
     if (num_bytes <= sizeof(current_packet))
     {
-        for(size_t i = 0; i < num_bytes; i++)
+        for (size_t i = 0; i < num_bytes; i++)
         {
             current_packet[i] = p_packet[i];
         }
+
         packet_size = num_bytes;
         byte_counter = packet_size;
     }
@@ -276,7 +302,7 @@ ISR(TIMER1_COMPA_vect)
     if (!OC1A_OUTPUT_PIN)
     {
         //if the pin is low and outputting a zero, we need to be using
-        // ZERO_LOW_COUNT
+        // ZERO_LOW_COUNT, which might be different to ZERO_HIGH_COUNT.
         if (OCR1A == ZERO_HIGH_COUNT)
         {
             OCR1A = OCR1B = ZERO_LOW_COUNT;
@@ -303,7 +329,10 @@ ISR(TIMER1_COMPA_vect)
             }
 
             dcc_hw_state = DCC_HW_STATE_SEND_PREAMBLE;
-            //and fall through to DCC_HW_STATE_SEND_PREAMBLE
+            bit_counter = PREAMBLE_BITS;
+            SET_STROBE_PIN();
+
+        //and fall through to DCC_HW_STATE_SEND_PREAMBLE
 
         /// Preamble: In the process of producing 14 '1's, counter by
         /// bit_counter; when complete, move to
@@ -311,13 +340,10 @@ ISR(TIMER1_COMPA_vect)
         case DCC_HW_STATE_SEND_PREAMBLE:
             OCR1A = OCR1B = ONE_COUNT;
 
-            if (bit_counter == 0)
+            if (--bit_counter == 0)
             {
+                CLEAR_STROBE_PIN();
                 dcc_hw_state = DCC_HW_STATE_SEND_BSTART;
-            }
-            else
-            {
-                bit_counter--;
             }
 
             break;
@@ -350,6 +376,7 @@ ISR(TIMER1_COMPA_vect)
                 // Out of bits! time to either send a new byte, or end the
                 // packet
                 byte_counter--;
+
                 if (byte_counter == 0)
                 {
                     // If not more bytes, move to DCC_HW_STATE_END_BIT
@@ -374,7 +401,7 @@ ISR(TIMER1_COMPA_vect)
         case DCC_HW_STATE_END_BIT:
             OCR1A = OCR1B = ONE_COUNT;
             dcc_hw_state = DCC_HW_STATE_IDLE;
-            bit_counter = PREAMBLE_BITS;
+
             break;
         }
     }

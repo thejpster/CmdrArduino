@@ -64,7 +64,6 @@ void DCCPacketScheduler::setup(void) //for any post-constructor initialization
     //Following RP 9.2.4, begin by putting 20 reset packets and 10 idle packets on the rails.
     //use the e_stop_queue to do this, to ensure these packets go out first!
 
-
     DCCPacket p;
     uint8_t data[] = {0x00};
 
@@ -427,6 +426,7 @@ bool DCCPacketScheduler::unsetBasicAccessory(DCCPacket::address_t address, uint8
     return low_priority_queue.insertPacket(&p);
 }
 
+
 //to be called periodically within loop()
 void DCCPacketScheduler::update(void) //checks queues, puts whatever's pending on the rails via global current_packet. easy-peasy
 {
@@ -487,6 +487,12 @@ void DCCPacketScheduler::update(void) //checks queues, puts whatever's pending o
         last_packet_address = p.getAddress(); //remember the address to compare with the next packet
         uint8_t buffer[10];
         uint8_t count = p.getBitstream(buffer);
+
         dcc_hardware_supply_packet(buffer, count); //feed to the starving ISR.
+        // Mark buffer as needing another packet
     }
 }
+
+/****************************************************************************
+ * End of file
+ ****************************************************************************/

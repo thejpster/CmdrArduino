@@ -26,11 +26,14 @@
  *
  */
 
-#ifndef __DCCCOMMANDSTATION_H__
-#define __DCCCOMMANDSTATION_H__
+#ifndef INC_DCCPACKETSCHEDULER_H
+#define INC_DCCPACKETSCHEDULER_H
 
 #include "DCCPacket.h"
 #include "DCCPacketQueue.h"
+#include "DCCEmergencyQueue.h"
+#include "DCCRepeatQueue.h"
+#include "DCCHardware.h"
 
 #define E_STOP_QUEUE_SIZE           2
 #define HIGH_PRIORITY_QUEUE_SIZE    10
@@ -51,19 +54,19 @@
 class DCCPacketScheduler
 {
   public:
-  
+
     DCCPacketScheduler(void);
-    
+
     //for configuration
     void setDefaultSpeedSteps(uint8_t new_speed_steps);
     void setup(void); //for any post-constructor initialization
-    
+
     //for enqueueing packets
     bool setSpeed(DCCPacket::address_t address, DCCPacket::address_kind_t address_kind, int8_t new_speed, uint8_t steps = 0); //new_speed: [-127,127]
     bool setSpeed14(DCCPacket::address_t address, DCCPacket::address_kind_t address_kind, int8_t new_speed, bool F0=true); //new_speed: [-13,13], and optionally F0 settings.
     bool setSpeed28(DCCPacket::address_t address, DCCPacket::address_kind_t address_kind, int8_t new_speed); //new_speed: [-28,28]
     bool setSpeed128(DCCPacket::address_t address, DCCPacket::address_kind_t address_kind, int8_t new_speed); //new_speed: [-127,127]
-    
+
     //the function methods are NOT stateful; you must specify all functions each time you call one
     //keeping track of function state is the responsibility of the calling program.
     bool setFunctions(DCCPacket::address_t address, DCCPacket::address_kind_t address_kind, uint8_t F0to4, uint8_t F5to9=0x00, uint8_t F9to12=0x00);
@@ -72,10 +75,10 @@ class DCCPacketScheduler
     bool setFunctions5to8(DCCPacket::address_t address, DCCPacket::address_kind_t address_kind, uint8_t functions);
     bool setFunctions9to12(DCCPacket::address_t address, DCCPacket::address_kind_t address_kind, uint8_t functions);
     //other cool functions to follow. Just get these working first, I think.
-    
+
     bool setBasicAccessory(DCCPacket::address_t address, uint8_t function);
     bool unsetBasicAccessory(DCCPacket::address_t address, uint8_t function);
-    
+
     bool opsProgramCV(DCCPacket::address_t address, DCCPacket::address_kind_t address_kind, uint16_t CV, uint8_t CV_data);
 
     //more specific functions
@@ -86,11 +89,11 @@ class DCCPacketScheduler
     void update(void); //checks queues, puts whatever's pending on the rails via global current_packet. easy-peasy
 
   private:
-  
+
     void repeatPacket(DCCPacket *p); //insert into the appropriate repeat queue
     uint8_t default_speed_steps;
     uint16_t last_packet_address;
-  
+
     uint8_t packet_counter;
     
     DCCEmergencyQueue e_stop_queue;
@@ -99,4 +102,4 @@ class DCCPacketScheduler
     DCCRepeatQueue repeat_queue;
 };
 
-#endif //__DCC_COMMANDSTATION_H__
+#endif // INC_DCCPACKETSCHEDULER_H

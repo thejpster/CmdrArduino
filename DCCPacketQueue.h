@@ -26,8 +26,8 @@
  *
  */
 
-#ifndef __DCCPACKETQUEUE_H__
-#define __DCCPACKETQUEUE_H__
+#ifndef INC_DCCPACKETQUEUE_H
+#define INC_DCCPACKETQUEUE_H
 
 
 /**
@@ -83,22 +83,8 @@ public:
   void clear(void);
 };
 
-//A queue that, when a packet is read, puts that packet back in the queue if it requires repeating.
-class DCCRepeatQueue: public DCCPacketQueue
-{
-public:
-  DCCRepeatQueue(void);
-  //void setup(byte length);
-  bool insertPacket(DCCPacket* packet);
-  bool readPacket(DCCPacket* packet);
-};
+#endif // INC_DCCPACKETQUEUE_H
 
-//A queue that repeats the topmost packet as many times as is indicated by the packet before moving on
-class DCCEmergencyQueue: public DCCPacketQueue
-{
-public:
-  DCCEmergencyQueue(void);
-  bool readPacket(DCCPacket* packet);
-};
-
-#endif //__DCCPACKETQUEUE_H__
+/****************************************************************************
+ * End of file
+ ****************************************************************************/
