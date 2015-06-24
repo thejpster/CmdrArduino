@@ -41,46 +41,46 @@
 class DCCPacketQueue
 {
 public: //protected:
-  DCCPacket* queue;
-  byte read_pos;
-  byte write_pos;
-  byte size;
-  byte written; //how many cells have valid data? used for determining full status.
+    DCCPacket* queue;
+    size_t read_pos;
+    size_t write_pos;
+    size_t size;
+    size_t written; //how many cells have valid data? used for determining full status.
 public:
-  DCCPacketQueue(void);
+    DCCPacketQueue(void);
 
-  virtual void setup(byte);
+    virtual void setup(size_t length);
 
-  ~DCCPacketQueue(void)
-  {
-    free(queue);
-  }
+    ~DCCPacketQueue(void)
+    {
+        delete [] queue;
+    }
 
-  virtual inline bool isFull(void)
-  {
-    return (written == size);
-  }
-  virtual inline bool isEmpty(void)
-  {
-    return (written == 0);
-  }
-  virtual inline bool notEmpty(void)
-  {
-    return (written > 0);
-  }
+    virtual inline bool isFull(void)
+    {
+        return (written == size);
+    }
 
-  virtual inline bool notRepeat(unsigned int address)
-  {
-    return (address != queue[read_pos].getAddress());
-  }
+    virtual inline bool isEmpty(void)
+    {
+        return (written == 0);
+    }
 
-  //void printQueue(void);
+    virtual inline bool notEmpty(void)
+    {
+        return (written > 0);
+    }
 
-  virtual bool insertPacket(DCCPacket* packet); //makes a local copy, does not take over memory management!
-  virtual bool readPacket(DCCPacket* packet); //does not hand off memory management of packet. used immediately.
+    virtual inline bool notRepeat(DCCPacket::address_t address)
+    {
+        return (address != queue[read_pos].getAddress());
+    }
 
-  bool forget(uint16_t address, byte address_kind);
-  void clear(void);
+    virtual bool insertPacket(const DCCPacket& packet); //makes a local copy, does not take over memory management!
+    virtual bool readPacket(DCCPacket& packet); //does not hand off memory management of packet. used immediately.
+
+    bool forget(DCCPacket::address_t address, DCCPacket::address_kind_t address_kind);
+    void clear(void);
 };
 
 #endif // INC_DCCPACKETQUEUE_H

@@ -40,7 +40,7 @@ DCCPacket::DCCPacket(address_t new_address, address_kind_t new_address_kind) : a
 	data[2] = 0x00;
 }
 
-uint8_t DCCPacket::getBitstream(uint8_t rawbytes[]) //returns size of array.
+size_t DCCPacket::getBitstream(uint8_t rawbytes[]) const //returns size of array.
 {
 	size_t total_size = 1; //minimum size
 	uint8_t cs_byte = 0;
@@ -119,12 +119,12 @@ uint8_t DCCPacket::getBitstream(uint8_t rawbytes[]) //returns size of array.
 	return 0; //ERROR! SHOULD NEVER REACH HERE! do something useful, like transform it into an idle packet or something! TODO
 }
 
-byte DCCPacket::getSize(void)
+size_t DCCPacket::getSize(void) const
 {
 	return (size_repeat >> 6);
 }
 
-void DCCPacket::addData(byte new_data[], byte new_size) //insert freeform data.
+void DCCPacket::addData(uint8_t new_data[], size_t new_size) //insert freeform data.
 {
 	for (int i = 0; i < new_size; ++i)
 	{

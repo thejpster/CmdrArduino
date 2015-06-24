@@ -36,9 +36,8 @@ class DCCRepeatQueue: public DCCPacketQueue
 {
 public:
   DCCRepeatQueue(void);
-  //void setup(byte length);
-  bool insertPacket(DCCPacket* packet);
-  bool readPacket(DCCPacket* packet);
+  bool insertPacket(const DCCPacket& packet);
+  bool readPacket(DCCPacket& packet);
 };
 
 #endif // INC_DCCREPEATQUEUE_H

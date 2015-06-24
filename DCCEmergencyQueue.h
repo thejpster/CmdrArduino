@@ -36,7 +36,7 @@ class DCCEmergencyQueue: public DCCPacketQueue
 {
 public:
   DCCEmergencyQueue(void);
-  bool readPacket(DCCPacket* packet);
+  bool readPacket(DCCPacket& packet);
 };
 
 #endif // INC_DCCEMERGENCYQUEUE_H

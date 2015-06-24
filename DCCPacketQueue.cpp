@@ -70,90 +70,85 @@
 
 DCCPacketQueue::DCCPacketQueue(void) : read_pos(0), write_pos(0), size(10), written(0)
 {
-  return;
+    return;
 }
 
-void DCCPacketQueue::setup(byte length)
+void DCCPacketQueue::setup(size_t length)
 {
-  size = length;
-  queue = (DCCPacket*)malloc(sizeof(DCCPacket) * size);
-
-  for (int i = 0; i < size; ++i)
-  {
-    queue[i] = DCCPacket();
-  }
+    size = length;
+    queue = new DCCPacket[size];
 }
 
-bool DCCPacketQueue::insertPacket(DCCPacket* packet)
+bool DCCPacketQueue::insertPacket(const DCCPacket& packet)
 {
-  //First: Overwrite any packet with the same address and kind; if no such packet THEN hitup the packet at write_pos
-  byte i = read_pos;
+    //First: Overwrite any packet with the same address and kind; if no such packet THEN hitup the packet at write_pos
+    byte i = read_pos;
 
-  while (i != (read_pos + written) % (size))  //(size+1) ) //size+1 so we can check the last slot, too…
-  {
-    if ((queue[i].getAddress() == packet->getAddress()) && (queue[i].getKind() == packet->getKind()))
+    while (i != (read_pos + written) % (size))  //(size+1) ) //size+1 so we can check the last slot, too…
     {
-      memcpy(&queue[i], packet, sizeof(DCCPacket));
-      //do not increment written or modify write_pos
-      return true;
+        if ((queue[i].getAddress() == packet.getAddress()) && (queue[i].getKind() == packet.getKind()))
+        {
+            queue[i] = packet;
+            //do not increment written or modify write_pos
+            return true;
+        }
+
+        i = (i + 1) % size;
     }
 
-    i = (i + 1) % size;
-  }
+    //else, tack it on to the end
+    if (!isFull())
+    {
+        //else, just write it at the end of the queue.
+        queue[write_pos] = packet;
+        write_pos = (write_pos + 1) % size;
+        ++written;
+        return true;
+    }
 
-  //else, tack it on to the end
-  if (!isFull())
-  {
-    //else, just write it at the end of the queue.
-    memcpy(&queue[write_pos], packet, sizeof(DCCPacket));
-    write_pos = (write_pos + 1) % size;
-    ++written;
-    return true;
-  }
-
-  return false;
+    return false;
 }
 
-bool DCCPacketQueue::readPacket(DCCPacket* packet)
+bool DCCPacketQueue::readPacket(DCCPacket& packet)
 {
-  if (!isEmpty())
-  {
-    memcpy(packet, &queue[read_pos], sizeof(DCCPacket));
-    read_pos = (read_pos + 1) % size;
+    if (!isEmpty())
+    {
+        packet = queue[read_pos];
+        read_pos = (read_pos + 1) % size;
+        --written;
+        return true;
+    }
+
+    return false;
+}
+
+bool DCCPacketQueue::forget(DCCPacket::address_t address, DCCPacket::address_kind_t address_kind)
+{
+    bool found = false;
+
+    for (int i = 0; i < size; ++i)
+    {
+        if ((queue[i].getAddress() == address) && (queue[i].getAddressKind() == address_kind))
+        {
+            found = true;
+            queue[i] = DCCPacket(); //revert to default value
+        }
+    }
+
     --written;
-    return true;
-  }
-
-  return false;
-}
-
-bool DCCPacketQueue::forget(uint16_t address, byte address_kind)
-{
-  bool found = false;
-
-  for (int i = 0; i < size; ++i)
-  {
-    if ((queue[i].getAddress() == address) && (queue[i].getAddressKind() == address_kind))
-    {
-      found = true;
-      queue[i] = DCCPacket(); //revert to default value
-    }
-  }
-
-  --written;
-  return found;
+    return found;
 }
 
 void DCCPacketQueue::clear(void)
 {
-  read_pos = 0;
-  write_pos = 0;
-  written = 0;
+    read_pos = 0;
+    write_pos = 0;
+    written = 0;
 
-  for (int i = 0; i < size; ++i)
-  {
-    queue[i] = DCCPacket();
-  }
+    for (int i = 0; i < size; ++i)
+    {
+        queue[i] = DCCPacket();
+    }
 }
 
 /****************************************************************************

@@ -72,34 +72,34 @@ DCCRepeatQueue::DCCRepeatQueue(void) : DCCPacketQueue()
 {
 }
 
-bool DCCRepeatQueue::insertPacket(DCCPacket* packet)
+bool DCCRepeatQueue::insertPacket(const DCCPacket& packet)
 {
-  if (packet->getRepeat())
-  {
-    return (DCCPacketQueue::insertPacket(packet));
-  }
-
-  return false;
-}
-
-bool DCCRepeatQueue::readPacket(DCCPacket* packet)
-{
-  if (!isEmpty())
-  {
-    memcpy(packet, &queue[read_pos], sizeof(DCCPacket));
-    read_pos = (read_pos + 1) % size;
-    --written;
-
-    if (packet->getRepeat()) //the packet needs to be sent out at least one more time
+    if (packet.getRepeat())
     {
-      packet->setRepeat(packet->getRepeat() - 1);
-      insertPacket(packet);
+        return (DCCPacketQueue::insertPacket(packet));
     }
 
-    return true;
-  }
+    return false;
+}
 
-  return false;
+bool DCCRepeatQueue::readPacket(DCCPacket& packet)
+{
+    if (!isEmpty())
+    {
+        packet = queue[read_pos];
+        read_pos = (read_pos + 1) % size;
+        --written;
+
+        if (packet.getRepeat()) //the packet needs to be sent out at least one more time
+        {
+            packet.setRepeat(packet.getRepeat() - 1);
+            insertPacket(packet);
+        }
+
+        return true;
+    }
+
+    return false;
 }
 
 

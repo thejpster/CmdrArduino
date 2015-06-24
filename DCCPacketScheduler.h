@@ -35,22 +35,6 @@
 #include "DCCRepeatQueue.h"
 #include "DCCHardware.h"
 
-#define E_STOP_QUEUE_SIZE           2
-#define HIGH_PRIORITY_QUEUE_SIZE    10
-#define LOW_PRIORITY_QUEUE_SIZE     10
-#define REPEAT_QUEUE_SIZE           10
-//#define PERIODIC_REFRESH_QUEUE_SIZE 10
-
-#define LOW_PRIORITY_INTERVAL     5
-#define REPEAT_INTERVAL           11
-#define PERIODIC_REFRESH_INTERVAL 23
-
-#define SPEED_REPEAT      3
-#define FUNCTION_REPEAT   3
-#define E_STOP_REPEAT     5
-#define OPS_MODE_PROGRAMMING_REPEAT 3
-#define OTHER_REPEAT      2
-
 class DCCPacketScheduler
 {
   public:
@@ -84,18 +68,18 @@ class DCCPacketScheduler
     //more specific functions
     bool eStop(void); //all locos
     bool eStop(DCCPacket::address_t address, DCCPacket::address_kind_t address_kind); //just one specific loco
-    
+
     //to be called periodically within loop()
     void update(void); //checks queues, puts whatever's pending on the rails via global current_packet. easy-peasy
 
   private:
 
-    void repeatPacket(DCCPacket *p); //insert into the appropriate repeat queue
+    void repeatPacket(const DCCPacket& p); //insert into the appropriate repeat queue
     uint8_t default_speed_steps;
     uint16_t last_packet_address;
 
     uint8_t packet_counter;
-    
+
     DCCEmergencyQueue e_stop_queue;
     DCCPacketQueue high_priority_queue;
     DCCPacketQueue low_priority_queue;

@@ -69,15 +69,15 @@ public:
 
     DCCPacket(address_t decoder_address = 0xFF, address_kind_t decoder_address_kind = DCC_SHORT_ADDRESS);
 
-    uint8_t getBitstream(uint8_t rawbytes[]); //returns size of array.
-    uint8_t getSize(void);
+    size_t getBitstream(uint8_t rawbytes[]) const; //returns number of bytes written
+    size_t getSize(void)  const;
 
-    inline address_t getAddress(void)
+    inline address_t getAddress(void) const
     {
         return address;
     }
 
-    inline uint8_t getAddressKind(void)
+    inline uint8_t getAddressKind(void) const
     {
         return address_kind;
     }
@@ -93,24 +93,24 @@ public:
         address_kind = new_address_kind;
     }
 
-    void addData(uint8_t new_data[], uint8_t new_size); //insert freeform data.
+    void addData(uint8_t new_data[], size_t new_size); //insert freeform data.
 
     inline void setKind(uint8_t new_kind)
     {
         kind = new_kind;
     }
 
-    inline uint8_t getKind(void)
+    inline uint8_t getKind(void) const
     {
         return kind;
     }
 
     inline void setRepeat(uint8_t new_repeat)
     {
-        size_repeat = ((size_repeat & 0xC0) | (new_repeat & 0x3F)) ;
+        size_repeat = ((size_repeat & 0xC0) | (new_repeat & 0x3F));
     }
 
-    inline uint8_t getRepeat(void)
+    inline uint8_t getRepeat(void) const
     {
         return size_repeat & 0x3F;
     }

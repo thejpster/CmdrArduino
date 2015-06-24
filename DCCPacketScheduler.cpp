@@ -26,18 +26,63 @@
  *
  */
 
-/*
- * System Includes
- */
+/****************************************************************************
+* Includes
+****************************************************************************/
 #include <Arduino.h>
 #include <stdint.h>
 #include <HardwareSerial.h>
 
-/*
- * Local Includes
- */
 #include "DCCPacketScheduler.h"
 #include "DCCHardware.h"
+
+/****************************************************************************
+ * Defines
+ ****************************************************************************/
+
+#define SPEED_REPEAT      3
+#define FUNCTION_REPEAT   3
+#define E_STOP_REPEAT     5
+#define OPS_MODE_PROGRAMMING_REPEAT 3
+#define OTHER_REPEAT      2
+
+#define E_STOP_QUEUE_SIZE           2
+#define HIGH_PRIORITY_QUEUE_SIZE    10
+#define LOW_PRIORITY_QUEUE_SIZE     10
+#define REPEAT_QUEUE_SIZE           10
+//#define PERIODIC_REFRESH_QUEUE_SIZE 10
+
+#define LOW_PRIORITY_INTERVAL     5
+#define REPEAT_INTERVAL           11
+#define PERIODIC_REFRESH_INTERVAL 23
+
+/****************************************************************************
+ * Data Types
+ ****************************************************************************/
+
+/* None */
+
+/****************************************************************************
+ * Function Prototypes
+ ****************************************************************************/
+
+/* None */
+
+/****************************************************************************
+ * Public Data
+ ****************************************************************************/
+
+/* None */
+
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
+
+/* None */
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
 
 DCCPacketScheduler::DCCPacketScheduler(void) :
     default_speed_steps(128),
@@ -72,7 +117,7 @@ void DCCPacketScheduler::setup(void) //for any post-constructor initialization
     p.setAddress(0x00, DCCPacket::DCC_SHORT_ADDRESS);
     p.setRepeat(20);
     p.setKind(RESET_PACKET_KIND);
-    e_stop_queue.insertPacket(&p);
+    e_stop_queue.insertPacket(p);
 
     //WHy in the world is it that what gets put on the rails is 4 reset packets, followed by
     //10 god know's what, followed by something else?
@@ -83,14 +128,14 @@ void DCCPacketScheduler::setup(void) //for any post-constructor initialization
     p.setAddress(0xFF, DCCPacket::DCC_SHORT_ADDRESS);
     p.setRepeat(10);
     p.setKind(IDLE_PACKET_KIND);
-    e_stop_queue.insertPacket(&p); //e_stop_queue will be empty, so no need to check if insertion was OK.
+    e_stop_queue.insertPacket(p); //e_stop_queue will be empty, so no need to check if insertion was OK.
 
 }
 
 //helper functions
-void DCCPacketScheduler::repeatPacket(DCCPacket* p)
+void DCCPacketScheduler::repeatPacket(const DCCPacket& p)
 {
-    switch (p->getKind())
+    switch (p.getKind())
     {
     case IDLE_PACKET_KIND:
     case ESTOP_PACKET_KIND: //e_stop packets automatically repeat without having to be put in a special queue
@@ -181,7 +226,7 @@ bool DCCPacketScheduler::setSpeed14(DCCPacket::address_t address, DCCPacket::add
 
     //speed packets get refreshed indefinitely, and so the repeat doesn't need to be set.
     //speed packets go to the high proirity queue
-    return (high_priority_queue.insertPacket(&p));
+    return (high_priority_queue.insertPacket(p));
 }
 
 bool DCCPacketScheduler::setSpeed28(DCCPacket::address_t address, DCCPacket::address_kind_t address_kind, int8_t new_speed)
@@ -221,8 +266,8 @@ bool DCCPacketScheduler::setSpeed28(DCCPacket::address_t address, DCCPacket::add
 
     //speed packets get refreshed indefinitely, and so the repeat doesn't need to be set.
     //speed packets go to the high proirity queue
-    //return(high_priority_queue.insertPacket(&p));
-    return (high_priority_queue.insertPacket(&p));
+    //return(high_priority_queue.insertPacket(p));
+    return (high_priority_queue.insertPacket(p));
 }
 
 bool DCCPacketScheduler::setSpeed128(DCCPacket::address_t address, DCCPacket::address_kind_t address_kind, int8_t new_speed)
@@ -263,31 +308,29 @@ bool DCCPacketScheduler::setSpeed128(DCCPacket::address_t address, DCCPacket::ad
 
     //speed packets get refreshed indefinitely, and so the repeat doesn't need to be set.
     //speed packets go to the high proirity queue
-    return (high_priority_queue.insertPacket(&p));
+    return (high_priority_queue.insertPacket(p));
 }
 
 bool DCCPacketScheduler::setFunctions(DCCPacket::address_t address, DCCPacket::address_kind_t address_kind, uint16_t functions)
 {
-    if (setFunctions0to4(address, address_kind, functions & 0x1F))
-        if (setFunctions5to8(address, address_kind, (functions >> 5) & 0x0F))
-            if (setFunctions9to12(address, address_kind, (functions >> 9) & 0x0F))
-            {
-                return true;
-            }
-
-    return false;
+    return setFunctions(address, address_kind, functions & 0x1F, (functions >> 5) & 0x0F, (functions >> 9) & 0x0F);
 }
 
 bool DCCPacketScheduler::setFunctions(DCCPacket::address_t address, DCCPacket::address_kind_t address_kind, uint8_t F0to4, uint8_t F5to8, uint8_t F9to12)
 {
+    bool retval = false;
     if (setFunctions0to4(address, address_kind, F0to4))
+    {
         if (setFunctions5to8(address, address_kind, F5to8))
+        {
             if (setFunctions9to12(address, address_kind, F9to12))
             {
-                return true;
+                retval = true;
             }
+        }
+    }
 
-    return false;
+    return retval;
 }
 
 bool DCCPacketScheduler::setFunctions0to4(DCCPacket::address_t address, DCCPacket::address_kind_t address_kind, uint8_t functions)
@@ -306,7 +349,7 @@ bool DCCPacketScheduler::setFunctions0to4(DCCPacket::address_t address, DCCPacke
     p.addData(data, 1);
     p.setKind(FUNCTION_PACKET_1_KIND);
     p.setRepeat(FUNCTION_REPEAT);
-    return low_priority_queue.insertPacket(&p);
+    return low_priority_queue.insertPacket(p);
 }
 
 
@@ -320,7 +363,7 @@ bool DCCPacketScheduler::setFunctions5to8(DCCPacket::address_t address, DCCPacke
     p.addData(data, 1);
     p.setKind(FUNCTION_PACKET_2_KIND);
     p.setRepeat(FUNCTION_REPEAT);
-    return low_priority_queue.insertPacket(&p);
+    return low_priority_queue.insertPacket(p);
 }
 
 bool DCCPacketScheduler::setFunctions9to12(DCCPacket::address_t address, DCCPacket::address_kind_t address_kind, uint8_t functions)
@@ -334,7 +377,7 @@ bool DCCPacketScheduler::setFunctions9to12(DCCPacket::address_t address, DCCPack
     p.addData(data, 1);
     p.setKind(FUNCTION_PACKET_3_KIND);
     p.setRepeat(FUNCTION_REPEAT);
-    return low_priority_queue.insertPacket(&p);
+    return low_priority_queue.insertPacket(p);
 }
 
 
@@ -363,7 +406,7 @@ bool DCCPacketScheduler::opsProgramCV(DCCPacket::address_t address, DCCPacket::a
     p.setKind(OPS_MODE_PROGRAMMING_KIND);
     p.setRepeat(OPS_MODE_PROGRAMMING_REPEAT);
 
-    return low_priority_queue.insertPacket(&p);
+    return low_priority_queue.insertPacket(p);
 }
 
 //more specific functions
@@ -377,7 +420,7 @@ bool DCCPacketScheduler::eStop(void)
     e_stop_packet.addData(data, 1);
     e_stop_packet.setKind(ESTOP_PACKET_KIND);
     e_stop_packet.setRepeat(10);
-    e_stop_queue.insertPacket(&e_stop_packet);
+    e_stop_queue.insertPacket(e_stop_packet);
     //now, clear all other queues
     high_priority_queue.clear();
     low_priority_queue.clear();
@@ -395,7 +438,7 @@ bool DCCPacketScheduler::eStop(DCCPacket::address_t address, DCCPacket::address_
     e_stop_packet.addData(data, 1);
     e_stop_packet.setKind(ESTOP_PACKET_KIND);
     e_stop_packet.setRepeat(10);
-    e_stop_queue.insertPacket(&e_stop_packet);
+    e_stop_queue.insertPacket(e_stop_packet);
     //now, clear this packet's address from all other queues
     high_priority_queue.forget(address, address_kind);
     low_priority_queue.forget(address, address_kind);
@@ -411,7 +454,7 @@ bool DCCPacketScheduler::setBasicAccessory(DCCPacket::address_t address, uint8_t
     p.setKind(BASIC_ACCESSORY_PACKET_KIND);
     p.setRepeat(OTHER_REPEAT);
 
-    return low_priority_queue.insertPacket(&p);
+    return low_priority_queue.insertPacket(p);
 }
 
 bool DCCPacketScheduler::unsetBasicAccessory(DCCPacket::address_t address, uint8_t function)
@@ -423,7 +466,7 @@ bool DCCPacketScheduler::unsetBasicAccessory(DCCPacket::address_t address, uint8
     p.setKind(BASIC_ACCESSORY_PACKET_KIND);
     p.setRepeat(OTHER_REPEAT);
 
-    return low_priority_queue.insertPacket(&p);
+    return low_priority_queue.insertPacket(p);
 }
 
 
@@ -443,7 +486,7 @@ void DCCPacketScheduler::update(void) //checks queues, puts whatever's pending o
         if (!e_stop_queue.isEmpty())   //if there's an e_stop packet, send it now!
         {
             //e_stop
-            e_stop_queue.readPacket(&p); //nothing more to do. e_stop_queue is a repeat_queue, so automatically repeats where necessary.
+            e_stop_queue.readPacket(p); //nothing more to do. e_stop_queue is a repeat_queue, so automatically repeats where necessary.
         }
         else
         {
@@ -458,40 +501,45 @@ void DCCPacketScheduler::update(void) //checks queues, puts whatever's pending o
             //examine queues in order from lowest priority to highest.
             //if(doRefresh)
             //{
-            //  periodic_refresh_queue.readPacket(&p);
+            //  periodic_refresh_queue.readPacket(p);
             //  ++packet_counter;
             //}
             //else if(doRepeat)
-            if (doRepeat)
+            if (doHigh)
             {
-                repeat_queue.readPacket(&p);
+                high_priority_queue.readPacket(p);
                 ++packet_counter;
             }
             else if (doLow)
             {
-                low_priority_queue.readPacket(&p);
+                low_priority_queue.readPacket(p);
                 ++packet_counter;
             }
-            else if (doHigh)
+            else if (doRepeat)
             {
-                high_priority_queue.readPacket(&p);
+                repeat_queue.readPacket(p);
                 ++packet_counter;
             }
 
             //if none of these conditions hold, DCCPackets initialize to the idle packet, so that's what'll get sent.
             //++packet_counter; //it's a byte; let it overflow, that's OK.
             //enqueue the packet for repitition, if necessary:
-            repeatPacket(&p);
+            repeatPacket(p);
         }
 
         last_packet_address = p.getAddress(); //remember the address to compare with the next packet
-        uint8_t buffer[10];
-        uint8_t count = p.getBitstream(buffer);
+        uint8_t buffer[DCC_PACKET_MAX_LEN];
+        size_t count = p.getBitstream(buffer);
 
         dcc_hardware_supply_packet(buffer, count); //feed to the starving ISR.
-        // Mark buffer as needing another packet
     }
 }
+
+/****************************************************************************
+ * Private Functions
+ ****************************************************************************/
+
+/* None */
 
 /****************************************************************************
  * End of file
